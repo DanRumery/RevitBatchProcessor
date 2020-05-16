@@ -127,7 +127,17 @@ def ToCloudPath(cloudProjectId, cloudModelId):
     cloudPath = ModelPathUtils.ConvertCloudGUIDsToCloudPath(cloudProjectGuid, cloudModelGuid)
     return cloudPath
 
-def OpenNewLocal(application, modelPath, localModelPath, closeAllWorksets=False, worksetConfig=None, audit=False):
+def GetOpenDocumentAction(application):
+    def openDocument(modelPath, openOptions):
+        return application.OpenDocumentFile(modelPath, openOptions)
+    return openDocument
+
+def GetOpenAndActivateDocumentAction(uiApplication):
+    def openDocument(modelPath, openOptions):
+        return uiApplication.OpenAndActivateDocument(modelPath, openOptions, False)
+    return openDocument
+
+def OpenNewLocalInternal(openDocument, modelPath, localModelPath, closeAllWorksets=False, worksetConfig=None, audit=False):
     modelPath = ToModelPath(modelPath)
     localModelPath = ToModelPath(localModelPath)
     openOptions = OpenOptions()
@@ -137,73 +147,66 @@ def OpenNewLocal(application, modelPath, localModelPath, closeAllWorksets=False,
     WorksharingUtils.CreateNewLocal(modelPath, localModelPath)
     if audit:
         openOptions.Audit = True
-    return application.OpenDocumentFile(localModelPath, openOptions)
+    return openDocument(localModelPath, openOptions)
+
+def OpenNewLocal(application, modelPath, localModelPath, closeAllWorksets=False, worksetConfig=None, audit=False):
+    openDocument = GetOpenDocumentAction(application)
+    return OpenNewLocalInternal(openDocument, modelPath, localModelPath, closeAllWorksets, worksetConfig, audit)
 
 def OpenAndActivateNewLocal(uiApplication, modelPath, localModelPath, closeAllWorksets=False, worksetConfig=None, audit=False):
+    openDocument = GetOpenAndActivateDocumentAction(uiApplication)
+    return OpenNewLocalInternal(openDocument, modelPath, localModelPath, closeAllWorksets, worksetConfig, audit)
+
+def OpenDetachAndPreserveWorksetsInternal(openDocument, modelPath, closeAllWorksets=False, worksetConfig=None, audit=False):
     modelPath = ToModelPath(modelPath)
-    localModelPath = ToModelPath(localModelPath)
     openOptions = OpenOptions()
-    openOptions.DetachFromCentralOption = DetachFromCentralOption.DoNotDetach
+    openOptions.DetachFromCentralOption = DetachFromCentralOption.DetachAndPreserveWorksets
     worksetConfig = ParseWorksetConfigurationOption(closeAllWorksets, worksetConfig)
     openOptions.SetOpenWorksetsConfiguration(worksetConfig)
-    WorksharingUtils.CreateNewLocal(modelPath, localModelPath)
     if audit:
         openOptions.Audit = True
-    return uiApplication.OpenAndActivateDocument(localModelPath, openOptions, False)
+    return openDocument(localModelPath, openOptions)
 
 def OpenDetachAndPreserveWorksets(application, modelPath, closeAllWorksets=False, worksetConfig=None, audit=False):
-    modelPath = ToModelPath(modelPath)
-    openOptions = OpenOptions()
-    openOptions.DetachFromCentralOption = DetachFromCentralOption.DetachAndPreserveWorksets
-    worksetConfig = ParseWorksetConfigurationOption(closeAllWorksets, worksetConfig)
-    openOptions.SetOpenWorksetsConfiguration(worksetConfig)
-    if audit:
-        openOptions.Audit = True
-    return application.OpenDocumentFile(modelPath, openOptions)
+    openDocument = GetOpenDocumentAction(application)
+    return OpenDetachAndPreserveWorksetsInternal(openDocument, modelPath, closeAllWorksets, worksetConfig, audit)
 
 def OpenAndActivateDetachAndPreserveWorksets(uiApplication, modelPath, closeAllWorksets=False, worksetConfig=None, audit=False):
-    modelPath = ToModelPath(modelPath)
+    openDocument = GetOpenAndActivateDocumentAction(uiApplication)
+    return OpenDetachAndPreserveWorksetsInternal(openDocument, modelPath, closeAllWorksets, worksetConfig, audit)
+
+def OpenCloudDocumentInternal(openDocument, cloudProjectId, cloudModelId, closeAllWorksets=False, worksetConfig=None, audit=False):
+    cloudPath = ToCloudPath(cloudProjectId, cloudModelId)
     openOptions = OpenOptions()
-    openOptions.DetachFromCentralOption = DetachFromCentralOption.DetachAndPreserveWorksets
     worksetConfig = ParseWorksetConfigurationOption(closeAllWorksets, worksetConfig)
     openOptions.SetOpenWorksetsConfiguration(worksetConfig)
     if audit:
         openOptions.Audit = True
-    return uiApplication.OpenAndActivateDocument(modelPath, openOptions, False)
+    return openDocument(cloudPath, openOptions)
 
 def OpenCloudDocument(application, cloudProjectId, cloudModelId, closeAllWorksets=False, worksetConfig=None, audit=False):
-    cloudPath = ToCloudPath(cloudProjectId, cloudModelId)
-    openOptions = OpenOptions()
-    worksetConfig = ParseWorksetConfigurationOption(closeAllWorksets, worksetConfig)
-    openOptions.SetOpenWorksetsConfiguration(worksetConfig)
-    if audit:
-        openOptions.Audit = True
-    return application.OpenDocumentFile(cloudPath, openOptions)
+    openDocument = GetOpenDocumentAction(application)
+    return OpenCloudDocumentInternal(openDocument, cloudProjectId, cloudModelId, closeAllWorksets, worksetConfig, audit)
 
 def OpenAndActivateCloudDocument(uiApplication, cloudProjectId, cloudModelId, closeAllWorksets=False, worksetConfig=None, audit=False):
-    cloudPath = ToCloudPath(cloudProjectId, cloudModelId)
+    openDocument = GetOpenAndActivateDocumentAction(uiApplication)
+    return OpenCloudDocumentInternal(openDocument, cloudProjectId, cloudModelId, closeAllWorksets, worksetConfig, audit)
+
+def OpenDetachAndDiscardWorksetsInternal(openDocument, modelPath, audit=False):
+    modelPath = ToModelPath(modelPath)
     openOptions = OpenOptions()
-    worksetConfig = ParseWorksetConfigurationOption(closeAllWorksets, worksetConfig)
-    openOptions.SetOpenWorksetsConfiguration(worksetConfig)
+    openOptions.DetachFromCentralOption = DetachFromCentralOption.DetachAndDiscardWorksets
     if audit:
         openOptions.Audit = True
-    return uiApplication.OpenAndActivateDocument(cloudPath, openOptions, False)
+    return openDocument(modelPath, openOptions)
 
 def OpenDetachAndDiscardWorksets(application, modelPath, audit=False):
-    modelPath = ToModelPath(modelPath)
-    openOptions = OpenOptions()
-    openOptions.DetachFromCentralOption = DetachFromCentralOption.DetachAndDiscardWorksets
-    if audit:
-        openOptions.Audit = True
-    return application.OpenDocumentFile(modelPath, openOptions)
+    openDocument = GetOpenDocumentAction(application)
+    return OpenDetachAndDiscardWorksetsInternal(openDocument, modelPath, audit)
 
 def OpenAndActivateDetachAndDiscardWorksets(uiApplication, modelPath, audit=False):
-    modelPath = ToModelPath(modelPath)
-    openOptions = OpenOptions()
-    openOptions.DetachFromCentralOption = DetachFromCentralOption.DetachAndDiscardWorksets
-    if audit:
-        openOptions.Audit = True
-    return uiApplication.OpenAndActivateDocument(modelPath, openOptions, False)
+    openDocument = GetOpenAndActivateDocumentAction(uiApplication)
+    return OpenDetachAndDiscardWorksetsInternal(openDocument, modelPath, audit)
 
 def OpenDocumentFile(application, modelPath, audit=False):
     doc = None
